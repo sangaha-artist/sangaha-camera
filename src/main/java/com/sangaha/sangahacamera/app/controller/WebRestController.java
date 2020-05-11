@@ -1,4 +1,4 @@
-package com.sangaha.sangahacamera.controller;
+package com.sangaha.sangahacamera.app.controller;
 
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.GetMapping;

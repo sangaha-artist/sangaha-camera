@@ -1,0 +1,121 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration scan="true" scanPeriod="5 minutes" debug="false">
+    <contextListener class="ch.qos.logback.classic.jul.LevelChangePropagator">
+        <resetJUL>true</resetJUL>
+    </contextListener>
+
+    <property name="log.file.name" value="app"/>
+    <property name="log.basedir.project" value="${catalina.base}/logs"/>
+
+    <!-- 패턴 분석을 용이하게 하기 위해 * 로 시작 -->
+    <property name="console.format"
+              value="* %-20(%cyan(%date{HH:mm:ss.SSS}) [%thread]) %highlight(%-5level) %magenta(%marker|%logger{36}): %msg%n%caller{2, DISPLAY_CALLER_EVAL}%rEx"/>
+    <property name="file.format" value="* %-30(%date [%thread]) %-5level %marker|%logger{36}: %msg%n"/>
+    <property name="exception.file.format" value="* %-30(%date [%thread]) %-5level %marker|%logger{36}: {%mdc} - %msg%n"/>
+    <property name="log.basedir" value="${log.dir:-${LOG_DIR:-${user.home}/logs}}}"/>
+
+    <!-- call stack 출력 -->
+    <evaluator name="DISPLAY_CALLER_EVAL">
+        <expression>logger.startsWith("kr.co.") &amp;&amp; throwable == null</expression>
+    </evaluator>
+
+    <!-- console -->
+    <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>${console.format}</pattern>
+        </encoder>
+    </appender>
+
+    <!-- async file -->
+    <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${log.basedir}/${log.file.name}.log</file>
+        <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+            <fileNamePattern>${log.basedir}/${log.file.name}.%d{yyyy-MM-dd}.%i.log.gz</fileNamePattern>
+            <maxHistory>7</maxHistory>
+            <maxFileSize>1024MB</maxFileSize>
+            <totalSizeCap>10GB</totalSizeCap>
+        </rollingPolicy>
+        <append>true</append>
+        <encoder>
+            <charset>UTF-8</charset>
+            <pattern>${file.format}%ex</pattern>
+        </encoder>
+    </appender>
+    <appender name="ASYNC" class="ch.qos.logback.classic.AsyncAppender" discardingThreshold="0">
+        <appender-ref ref="FILE"/>
+    </appender>
+
+    <!-- async error file -->
+    <appender name="FILE-ERROR" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <filter class="ch.qos.logback.classic.filter.ThresholdFilter">
+            <level>ERROR</level>
+        </filter>
+        <file>${log.basedir}/exception.log</file>
+        <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+            <fileNamePattern>${log.basedir}/exception.%d{yyyy-MM-dd}.%i.log.gz</fileNamePattern>
+            <maxHistory>30</maxHistory>
+            <maxFileSize>1024MB</maxFileSize>
+            <totalSizeCap>10GB</totalSizeCap>
+        </rollingPolicy>
+        <append>true</append>
+        <encoder>
+            <charset>UTF-8</charset>
+            <pattern>${exception.file.format}%ex</pattern>
+        </encoder>
+    </appender>
+    <appender name="ASYNC-ERROR" class="ch.qos.logback.classic.AsyncAppender">
+        <appender-ref ref="FILE-ERROR"/>
+    </appender>
+
+    <appender name="HibernateSQL" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${log.basedir.project}/${log.file.name}.query.log</file>
+        <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+            <fileNamePattern>${log.basedir.project}/${log.file.name}.query.%d{yyyy-MM-dd}.%i.log.gz</fileNamePattern>
+            <maxHistory>3</maxHistory>
+            <maxFileSize>1024MB</maxFileSize>
+            <totalSizeCap>10GB</totalSizeCap>
+        </rollingPolicy>
+        <append>true</append>
+        <encoder>
+            <charset>UTF-8</charset>
+            <pattern>${file.format}%ex</pattern>
+        </encoder>
+    </appender>
+
+    <if condition='!p("spring.profiles.active").equals("release") &amp;&amp; !p("profiles").equals("release")'>
+        <then>
+            <Logger name="org.hibernate.SQL" level="debug" additivity="true">
+                <appender-ref ref="HibernateSQL"/>
+            </Logger>
+
+            <Logger name="org.hibernate.type.descriptor.sql" level="debug" additivity="true">
+                <appender-ref ref="HibernateSQL"/>
+            </Logger>
+        </then>
+    </if>
+
+    <if condition='p("spring.profiles.active").contains("local") || p("profiles").contains("local")'>
+        <then>
+            <!-- 로컬 개발일 경우 모든 로그 출력 -->
+            <root level="DEBUG">
+                <appender-ref ref="STDOUT"/>
+            </root>
+        </then>
+        <else>
+            <!-- 에러와 debug 로그 분리 출력
+            <logger name="kr.co.within" level="INFO">
+                <appender-ref ref="ASYNC"/>
+            </logger>
+            -->
+            <root level="INFO">
+                <appender-ref ref="ASYNC-ERROR"/>
+                <appender-ref ref="ASYNC"/>
+            </root>
+        </else>
+    </if>
+    <logger name="kr.co.within.iwc.common.config.database.ReplicationRoutingDataSource" level="off"/>
+    <logger name="com.couchbase.client.core.config.ConfigurationProvider" level="off"/>
+    <logger name="com.couchbase.client.core.config.refresher.CarrierRefresher" level="off"/>
+    <logger name="com.couchbase.client.core.endpoint.AbstractGenericHandler" level="off"/>
+    <logger name="com.zaxxer.hikari.pool.HikariPool" level="off"/>
+</configuration>
