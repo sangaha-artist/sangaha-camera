@@ -1,0 +1,11 @@
+.gradle/
+gradle/
+.idea/**
+build/
+classes/
+out/
+logs/
+*.iml
+generated
+
+src/main/resources/application-local.properties
